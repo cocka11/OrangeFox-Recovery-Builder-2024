@@ -59,19 +59,12 @@ jobs:
     permissions:
       contents: write
     steps:
+
+    # 1️⃣ Checkout repo
     - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Display Inputs
-      run: |
-        echo "DEVICE_NAME: ${{ github.event.inputs.DEVICE_NAME }}"
-        echo "DEVICE_PATH: ${{ github.event.inputs.DEVICE_PATH }}"
-        echo "Manifest Branch: ${{ github.event.inputs.MANIFEST_BRANCH }}"
-        
-    - name: Upgrade Bash
-      run: |
-        sudo apt install -y bash
-  
+    # 2️⃣ Update system
     - name: Build Environment
       run: |
         sudo apt update && sudo apt -y upgrade
@@ -79,6 +72,11 @@ jobs:
         cd scripts
         sudo bash setup/android_build_env.sh
 
+    # 3️⃣ Ensure Bash 5+ (safety check)
+    - name: Upgrade Bash
+      run: sudo apt install -y bash
+
+    # 4️⃣ Sync OrangeFox fully
     - name: Set-up Manifest
       run: |
         mkdir -p ${GITHUB_WORKSPACE}/OrangeFox
@@ -87,6 +85,7 @@ jobs:
         cd sync
         ./orangefox_sync.sh --branch ${{ github.event.inputs.MANIFEST_BRANCH }} --path ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
 
+    # 5️⃣ Clone Garnet Device Tree
     - name: Clone Device Tree
       run: |
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
@@ -94,15 +93,18 @@ jobs:
         cd ${{ github.event.inputs.DEVICE_PATH }}
         echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
+    # 6️⃣ Prepare build
     - name: Build OrangeFox
       run: |
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
+        set -e
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
         lunch omni_${{ github.event.inputs.DEVICE_NAME }}-eng
         make clean
         mka ${{ github.event.inputs.BUILD_TARGET }}image
 
+    # 7️⃣ Set Build Date and Device URL
     - name: Set Build Date
       run: |
         echo "BUILD_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
@@ -112,7 +114,8 @@ jobs:
         fi
         echo "DEVICE_TREE_URL=${DEVICE_TREE_URL}" >> $GITHUB_ENV
 
-    - name: Check if Recovery Exists
+    # 8️⃣ Check if recovery exists
+    - name: Check Recovery
       run: |
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
         if [ -f out/target/product/${{ github.event.inputs.DEVICE_NAME }}/OrangeFox*.img ]; then
@@ -124,6 +127,7 @@ jobs:
             exit 1
         fi
 
+    # 9️⃣ Rename recovery image
     - name: Rename Recovery
       run: |
         cd ${{ env.FILE_PATH }}/
@@ -140,6 +144,7 @@ jobs:
           echo "No Recovery file found!"
         fi
 
+    # 🔟 Include Recovery Installer
     - name: Include Recovery Installer
       run: |
         if [ ${{ github.event.inputs.RECOVERY_INSTALLER }} = true ]; then
@@ -148,13 +153,15 @@ jobs:
           zip -ur recovery-installer.zip ${{ env.RECOVERY_TYPE }}.img
         fi
 
-    - name: Recovery to tar for Samsung devices
+    # 1️⃣1️⃣ Recovery tar for Samsung devices
+    - name: Recovery to tar
       run: |
         if [ ${{ github.event.inputs.RECOVERY_TAR }} = true ]; then
           cd ${{ env.FILE_PATH }}/
           tar -cvf ${{ env.RECOVERY_TYPE }}.tar ${{ env.RECOVERY_TYPE }}.img
         fi
 
+    # 1️⃣2️⃣ Run LDCheck safely
     - name: Run LDCheck
       run: |
         mkdir -p ${{ env.FILE_PATH }}/recovery/root/
