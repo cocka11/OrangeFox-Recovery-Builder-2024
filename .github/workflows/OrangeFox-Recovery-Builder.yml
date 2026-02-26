@@ -1,4 +1,4 @@
-name: OrangeFox - Build Garnet
+name: OrangeFox - Build Garnet Safe
 
 on:
   workflow_dispatch:
@@ -7,9 +7,6 @@ on:
         description: 'OrangeFox Branch'
         required: true
         default: '12.1'
-        type: choice
-        options:
-        - 12.1
       DEVICE_TREE:
         description: 'Garnet Recovery Tree'
         required: true
@@ -36,7 +33,7 @@ on:
         - recovery
         - vendorboot
       LDCHECK:
-        description: 'Path of blobs to check' 
+        description: 'Path of blobs to check'
         required: true
         default: 'system/bin/qseecomd'
       RECOVERY_TAR:
@@ -52,7 +49,7 @@ on:
 
 jobs:
   build:
-    name: Build OrangeFox Garnet
+    name: Build OrangeFox Garnet Safe
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -60,24 +57,18 @@ jobs:
       contents: write
     steps:
 
-    # 1️⃣ Checkout repo
     - name: Checkout
       uses: actions/checkout@v3
 
-    # 2️⃣ Update system
-    - name: Build Environment
+    - name: Update system and Build Environment
       run: |
         sudo apt update && sudo apt -y upgrade
         git clone https://gitlab.com/OrangeFox/misc/scripts
         cd scripts
         sudo bash setup/android_build_env.sh
+        sudo apt install -y bash
 
-    # 3️⃣ Ensure Bash 5+ (safety check)
-    - name: Upgrade Bash
-      run: sudo apt install -y bash
-
-    # 4️⃣ Sync OrangeFox fully
-    - name: Set-up Manifest
+    - name: Sync OrangeFox
       run: |
         mkdir -p ${GITHUB_WORKSPACE}/OrangeFox
         cd ${GITHUB_WORKSPACE}/OrangeFox
@@ -85,26 +76,23 @@ jobs:
         cd sync
         ./orangefox_sync.sh --branch ${{ github.event.inputs.MANIFEST_BRANCH }} --path ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
 
-    # 5️⃣ Clone Garnet Device Tree
-    - name: Clone Device Tree
+    - name: Clone Garnet Device Tree
       run: |
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
         git clone ${{ github.event.inputs.DEVICE_TREE }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
         cd ${{ github.event.inputs.DEVICE_PATH }}
         echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
-    # 6️⃣ Prepare build
-    - name: Build OrangeFox
+    - name: Build OrangeFox (Safe)
       run: |
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-        set -e
-        source build/envsetup.sh
+        # Mos thirr vendorsetup.sh për të shmangur pop_var_context
         export ALLOW_MISSING_DEPENDENCIES=true
+        source build/envsetup.sh
         lunch omni_${{ github.event.inputs.DEVICE_NAME }}-eng
         make clean
         mka ${{ github.event.inputs.BUILD_TARGET }}image
 
-    # 7️⃣ Set Build Date and Device URL
     - name: Set Build Date
       run: |
         echo "BUILD_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
@@ -114,7 +102,6 @@ jobs:
         fi
         echo "DEVICE_TREE_URL=${DEVICE_TREE_URL}" >> $GITHUB_ENV
 
-    # 8️⃣ Check if recovery exists
     - name: Check Recovery
       run: |
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
@@ -127,7 +114,6 @@ jobs:
             exit 1
         fi
 
-    # 9️⃣ Rename recovery image
     - name: Rename Recovery
       run: |
         cd ${{ env.FILE_PATH }}/
@@ -144,7 +130,6 @@ jobs:
           echo "No Recovery file found!"
         fi
 
-    # 🔟 Include Recovery Installer
     - name: Include Recovery Installer
       run: |
         if [ ${{ github.event.inputs.RECOVERY_INSTALLER }} = true ]; then
@@ -153,7 +138,6 @@ jobs:
           zip -ur recovery-installer.zip ${{ env.RECOVERY_TYPE }}.img
         fi
 
-    # 1️⃣1️⃣ Recovery tar for Samsung devices
     - name: Recovery to tar
       run: |
         if [ ${{ github.event.inputs.RECOVERY_TAR }} = true ]; then
@@ -161,7 +145,6 @@ jobs:
           tar -cvf ${{ env.RECOVERY_TYPE }}.tar ${{ env.RECOVERY_TYPE }}.img
         fi
 
-    # 1️⃣2️⃣ Run LDCheck safely
     - name: Run LDCheck
       run: |
         mkdir -p ${{ env.FILE_PATH }}/recovery/root/
