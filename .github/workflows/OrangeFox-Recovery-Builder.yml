@@ -1,43 +1,52 @@
-name: Build OrangeFox for Garnet
+name: OrangeFox Build Garnet Final
 
 on:
   workflow_dispatch:
     inputs:
       MANIFEST_BRANCH:
-        description: 'OrangeFox Branch (ex: 12.1)'
+        description: 'OrangeFox Branch (12.1)'
         required: true
         default: '12.1'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
+    # 1️⃣ Checkout workflow repo
     - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Setup build environment
+    # 2️⃣ Setup build environment
+    - name: Setup Build Environment
       run: |
         sudo apt update && sudo apt -y upgrade
+        sudo apt install -y git repo bash wget zip unzip python3
         git clone https://gitlab.com/OrangeFox/misc/scripts
         cd scripts
         sudo bash setup/android_build_env.sh
-        sudo apt install -y bash
 
+    # 3️⃣ Sync OrangeFox zyrtar (12.1)
     - name: Sync OrangeFox sources
       run: |
         mkdir -p OFX
         cd OFX
         git clone https://gitlab.com/OrangeFox/sync.git
         cd sync
-        ./orangefox_sync.sh --branch ${{ github.event.inputs.MANIFEST_BRANCH }} --path ..
-    
-    - name: Add your Garnet device tree
-      run: |
-        cd OFX
-        mkdir -p fox_${{ github.event.inputs.MANIFEST_BRANCH }}/device/xiaomi/garnet
-        git clone https://github.com/cocka11/recovery_garnet.git fox_${{ github.event.inputs.MANIFEST_BRANCH }}/device/xiaomi/garnet
+        ./orangefox_sync.sh --branch ${{ github.event.inputs.MANIFEST_BRANCH }} --path .. --full-manifest
 
+    # 4️⃣ Klono device tree tënd për Garnet
+    - name: Add your device tree
+      run: |
+        cd OFX/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
+        mkdir -p device/xiaomi/garnet
+        git clone https://github.com/cocka11/recovery_garnet.git device/xiaomi/garnet
+        cd device/xiaomi/garnet
+        echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+
+    # 5️⃣ Build OrangeFox për Garnet
     - name: Build OrangeFox
       run: |
         cd OFX/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
@@ -46,3 +55,37 @@ jobs:
         lunch omni_garnet-eng
         make clean
         mka recoveryimage
+
+    # 6️⃣ Kontrollo nëse u krijua recovery
+    - name: Check Recovery
+      run: |
+        OUT_DIR=OFX/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/garnet
+        if [ -f $OUT_DIR/OrangeFox*.img ]; then
+          echo "CHECK_IMG_IS_OK=true" >> $GITHUB_ENV
+          echo "FILE_PATH=$OUT_DIR" >> $GITHUB_ENV
+          echo "MD5_IMG=$(md5sum $OUT_DIR/OrangeFox*.img | cut -d ' ' -f1)" >> $GITHUB_ENV
+        else
+          echo "Recovery build failed!"
+          exit 1
+        fi
+
+    # 7️⃣ Rename recovery.img
+    - name: Rename Recovery
+      run: |
+        cd ${{ env.FILE_PATH }}
+        mv OrangeFox*.img recovery.img
+        echo "RECOVERY_TYPE=recovery" >> $GITHUB_ENV
+
+    # 8️⃣ (Opsionale) Include Recovery Installer
+    - name: Include Recovery Installer
+      run: |
+        cd ${{ env.FILE_PATH }}
+        wget -q https://github.com/kinguser981/recovery-installer/releases/download/11256427880/recovery-installer.zip
+        zip -ur recovery-installer.zip recovery.img
+
+    # 9️⃣ Output Build Details
+    - name: Build Info
+      run: |
+        echo "OrangeFox build completed successfully!"
+        echo "Recovery path: ${{ env.FILE_PATH }}/recovery.img"
+        echo "MD5: ${{ env.MD5_IMG }}"
