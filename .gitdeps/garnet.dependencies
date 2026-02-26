@@ -1,0 +1,17 @@
+[
+  {
+    "repository": "https://gitlab.com/OrangeFox/device/xiaomi/sm84xx-common.git",
+    "target_path": "device/xiaomi/sm84xx-common",
+    "branch": "fox_12.1"
+  },
+  {
+    "repository": "https://gitlab.com/OrangeFox/vendor/xiaomi/garnet.git",
+    "target_path": "vendor/xiaomi/garnet",
+    "branch": "fox_12.1"
+  },
+  {
+    "repository": "https://gitlab.com/OrangeFox/kernel/xiaomi/sm84xx.git",
+    "target_path": "kernel/xiaomi/sm84xx",
+    "branch": "fox_12.1"
+  }
+]
