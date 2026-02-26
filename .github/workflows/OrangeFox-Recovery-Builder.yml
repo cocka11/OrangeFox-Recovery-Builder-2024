@@ -1,68 +1,22 @@
-name: OrangeFox - Build Garnet Safe
+name: Build OrangeFox for Garnet
 
 on:
   workflow_dispatch:
     inputs:
       MANIFEST_BRANCH:
-        description: 'OrangeFox Branch'
+        description: 'OrangeFox Branch (ex: 12.1)'
         required: true
         default: '12.1'
-      DEVICE_TREE:
-        description: 'Garnet Recovery Tree'
-        required: true
-        default: 'https://gitlab.com/OrangeFox/device/garnet'
-      DEVICE_TREE_BRANCH:
-        description: 'Garnet Recovery Tree Branch'
-        required: true
-        default: 'fox_12.1'
-      DEVICE_PATH:
-        description: 'Device path for Garnet'
-        required: true
-        default: 'device/xiaomi/garnet'
-      DEVICE_NAME:
-        description: 'Device codename'
-        required: true
-        default: 'garnet'
-      BUILD_TARGET:
-        description: 'Build target'
-        required: true
-        default: 'recovery'
-        type: choice
-        options:
-        - boot
-        - recovery
-        - vendorboot
-      LDCHECK:
-        description: 'Path of blobs to check'
-        required: true
-        default: 'system/bin/qseecomd'
-      RECOVERY_TAR:
-        description: 'Release recovery.tar for Samsung devices'
-        required: false
-        default: false
-        type: boolean
-      RECOVERY_INSTALLER:
-        description: 'Include recovery installer zip'
-        type: boolean
-        required: true
-        default: true
 
 jobs:
   build:
-    name: Build OrangeFox Garnet Safe
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    permissions:
-      contents: write
-    steps:
 
-    # 1️⃣ Checkout repo
+    steps:
     - name: Checkout
       uses: actions/checkout@v3
 
-    # 2️⃣ Update system dhe environment
-    - name: Build Environment
+    - name: Setup build environment
       run: |
         sudo apt update && sudo apt -y upgrade
         git clone https://gitlab.com/OrangeFox/misc/scripts
@@ -70,96 +24,25 @@ jobs:
         sudo bash setup/android_build_env.sh
         sudo apt install -y bash
 
-    # 3️⃣ Sync zyrtar i OrangeFox
-    - name: Sync OrangeFox
+    - name: Sync OrangeFox sources
       run: |
-        mkdir -p ${GITHUB_WORKSPACE}/OrangeFox
-        cd ${GITHUB_WORKSPACE}/OrangeFox
+        mkdir -p OFX
+        cd OFX
         git clone https://gitlab.com/OrangeFox/sync.git
         cd sync
-        ./orangefox_sync.sh --branch ${{ github.event.inputs.MANIFEST_BRANCH }} --path ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-
-    # 4️⃣ Clone device tree zyrtar për Garnet
-    - name: Clone Device Tree
+        ./orangefox_sync.sh --branch ${{ github.event.inputs.MANIFEST_BRANCH }} --path ..
+    
+    - name: Add your Garnet device tree
       run: |
-        cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-        git clone ${{ github.event.inputs.DEVICE_TREE }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
-        cd ${{ github.event.inputs.DEVICE_PATH }}
-        echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+        cd OFX
+        mkdir -p fox_${{ github.event.inputs.MANIFEST_BRANCH }}/device/xiaomi/garnet
+        git clone https://github.com/cocka11/recovery_garnet.git fox_${{ github.event.inputs.MANIFEST_BRANCH }}/device/xiaomi/garnet
 
-    # 5️⃣ Ndërtimi i OrangeFox (shmang vendorsetup.sh)
-    - name: Build OrangeFox Safe
+    - name: Build OrangeFox
       run: |
-        cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
+        cd OFX/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
         export ALLOW_MISSING_DEPENDENCIES=true
         source build/envsetup.sh
-        lunch omni_${{ github.event.inputs.DEVICE_NAME }}-eng
+        lunch omni_garnet-eng
         make clean
-        mka ${{ github.event.inputs.BUILD_TARGET }}image
-
-    # 6️⃣ Set Build Date dhe Device URL
-    - name: Set Build Date
-      run: |
-        echo "BUILD_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
-        DEVICE_TREE_URL="${{ github.event.inputs.DEVICE_TREE }}"
-        if [[ "${DEVICE_TREE_URL}" == *.git ]]; then
-          DEVICE_TREE_URL="${DEVICE_TREE_URL%.git}"
-        fi
-        echo "DEVICE_TREE_URL=${DEVICE_TREE_URL}" >> $GITHUB_ENV
-
-    # 7️⃣ Kontrollo nëse recovery ekziston
-    - name: Check Recovery
-      run: |
-        cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-        if [ -f out/target/product/${{ github.event.inputs.DEVICE_NAME }}/OrangeFox*.img ]; then
-            echo "CHECK_IMG_IS_OK=true" >> $GITHUB_ENV
-            echo "FILE_PATH=${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}" >> $GITHUB_ENV
-            echo "MD5_IMG=$(md5sum out/target/product/${{ github.event.inputs.DEVICE_NAME }}/OrangeFox*.img | cut -d ' ' -f 1)" >> $GITHUB_ENV
-        else
-            echo "Recovery out directory is empty."
-            exit 1
-        fi
-
-    # 8️⃣ Riemërto recovery
-    - name: Rename Recovery
-      run: |
-        cd ${{ env.FILE_PATH }}/
-        if [ "${{ github.event.inputs.BUILD_TARGET }}" = "boot" ]; then
-          mv OrangeFox*.img boot.img
-          echo "RECOVERY_TYPE=boot" >> $GITHUB_ENV
-        elif [ "${{ github.event.inputs.BUILD_TARGET }}" = "recovery" ]; then
-          mv OrangeFox*.img recovery.img
-          echo "RECOVERY_TYPE=recovery" >> $GITHUB_ENV
-        elif [ "${{ github.event.inputs.BUILD_TARGET }}" = "vendorboot" ]; then
-          mv OrangeFox*.img vendor_boot.img
-          echo "RECOVERY_TYPE=vendor_boot" >> $GITHUB_ENV
-        else
-          echo "No Recovery file found!"
-        fi
-
-    # 9️⃣ Include Recovery Installer
-    - name: Include Recovery Installer
-      run: |
-        if [ ${{ github.event.inputs.RECOVERY_INSTALLER }} = true ]; then
-          cd ${{ env.FILE_PATH }}/
-          wget https://github.com/kinguser981/recovery-installer/releases/download/11256427880/recovery-installer.zip
-          zip -ur recovery-installer.zip ${{ env.RECOVERY_TYPE }}.img
-        fi
-
-    # 🔟 Recovery tar për Samsung
-    - name: Recovery to tar
-      run: |
-        if [ ${{ github.event.inputs.RECOVERY_TAR }} = true ]; then
-          cd ${{ env.FILE_PATH }}/
-          tar -cvf ${{ env.RECOVERY_TYPE }}.tar ${{ env.RECOVERY_TYPE }}.img
-        fi
-
-    # 1️⃣1️⃣ LDCheck
-    - name: Run LDCheck
-      run: |
-        mkdir -p ${{ env.FILE_PATH }}/recovery/root/
-        mv -n libneeds ${{ env.FILE_PATH }}/recovery/root/ || true
-        mv -n ldcheck ${{ env.FILE_PATH }}/recovery/root/ || true
-        cd ${{ env.FILE_PATH }}/recovery/root/
-        python3 ldcheck -p system/lib64:vendor/lib64:system/lib:vendor/lib -d ${{ github.event.inputs.LDCHECK }}
-        echo "Done checking missing dependencies."
+        mka recoveryimage
