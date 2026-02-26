@@ -57,10 +57,12 @@ jobs:
       contents: write
     steps:
 
+    # 1️⃣ Checkout repo
     - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Update system and Build Environment
+    # 2️⃣ Update system dhe environment
+    - name: Build Environment
       run: |
         sudo apt update && sudo apt -y upgrade
         git clone https://gitlab.com/OrangeFox/misc/scripts
@@ -68,6 +70,7 @@ jobs:
         sudo bash setup/android_build_env.sh
         sudo apt install -y bash
 
+    # 3️⃣ Sync zyrtar i OrangeFox
     - name: Sync OrangeFox
       run: |
         mkdir -p ${GITHUB_WORKSPACE}/OrangeFox
@@ -76,23 +79,25 @@ jobs:
         cd sync
         ./orangefox_sync.sh --branch ${{ github.event.inputs.MANIFEST_BRANCH }} --path ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
 
-    - name: Clone Garnet Device Tree
+    # 4️⃣ Clone device tree zyrtar për Garnet
+    - name: Clone Device Tree
       run: |
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
         git clone ${{ github.event.inputs.DEVICE_TREE }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
         cd ${{ github.event.inputs.DEVICE_PATH }}
         echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
-    - name: Build OrangeFox (Safe)
+    # 5️⃣ Ndërtimi i OrangeFox (shmang vendorsetup.sh)
+    - name: Build OrangeFox Safe
       run: |
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-        # Mos thirr vendorsetup.sh për të shmangur pop_var_context
         export ALLOW_MISSING_DEPENDENCIES=true
         source build/envsetup.sh
         lunch omni_${{ github.event.inputs.DEVICE_NAME }}-eng
         make clean
         mka ${{ github.event.inputs.BUILD_TARGET }}image
 
+    # 6️⃣ Set Build Date dhe Device URL
     - name: Set Build Date
       run: |
         echo "BUILD_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
@@ -102,6 +107,7 @@ jobs:
         fi
         echo "DEVICE_TREE_URL=${DEVICE_TREE_URL}" >> $GITHUB_ENV
 
+    # 7️⃣ Kontrollo nëse recovery ekziston
     - name: Check Recovery
       run: |
         cd ${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
@@ -114,6 +120,7 @@ jobs:
             exit 1
         fi
 
+    # 8️⃣ Riemërto recovery
     - name: Rename Recovery
       run: |
         cd ${{ env.FILE_PATH }}/
@@ -130,6 +137,7 @@ jobs:
           echo "No Recovery file found!"
         fi
 
+    # 9️⃣ Include Recovery Installer
     - name: Include Recovery Installer
       run: |
         if [ ${{ github.event.inputs.RECOVERY_INSTALLER }} = true ]; then
@@ -138,6 +146,7 @@ jobs:
           zip -ur recovery-installer.zip ${{ env.RECOVERY_TYPE }}.img
         fi
 
+    # 🔟 Recovery tar për Samsung
     - name: Recovery to tar
       run: |
         if [ ${{ github.event.inputs.RECOVERY_TAR }} = true ]; then
@@ -145,6 +154,7 @@ jobs:
           tar -cvf ${{ env.RECOVERY_TYPE }}.tar ${{ env.RECOVERY_TYPE }}.img
         fi
 
+    # 1️⃣1️⃣ LDCheck
     - name: Run LDCheck
       run: |
         mkdir -p ${{ env.FILE_PATH }}/recovery/root/
