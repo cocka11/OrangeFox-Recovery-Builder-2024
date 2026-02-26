@@ -67,7 +67,11 @@ jobs:
         echo "DEVICE_NAME: ${{ github.event.inputs.DEVICE_NAME }}"
         echo "DEVICE_PATH: ${{ github.event.inputs.DEVICE_PATH }}"
         echo "Manifest Branch: ${{ github.event.inputs.MANIFEST_BRANCH }}"
-
+        
+    - name: Upgrade Bash
+      run: |
+        sudo apt install -y bash
+  
     - name: Build Environment
       run: |
         sudo apt update && sudo apt -y upgrade
