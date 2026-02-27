@@ -6,11 +6,11 @@ on:
       MANIFEST_BRANCH:
         description: 'TWRP Manifest Branch'
         required: true
-        default: 'android-12.1'
+        default: 'twrp-12.1' # Ndryshuar këtu
         type: choice
         options:
-        - android-12.1
-        - android-11.0
+        - twrp-12.1
+        - twrp-11
       DEVICE_TREE:
         description: 'Device Tree URL'
         required: true
@@ -39,7 +39,7 @@ on:
 jobs:
   build:
     name: Build TWRP by ${{ github.actor }}
-    runs-on: ubuntu-22.04 # Më mirë për build android
+    runs-on: ubuntu-22.04
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     permissions:
