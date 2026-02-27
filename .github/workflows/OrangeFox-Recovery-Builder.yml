@@ -19,7 +19,7 @@ jobs:
         sudo apt-get purge -y azure-cli google-cloud-sdk microsoft-edge-stable google-chrome-stable firefox dotnet-sdk-* openjdk* || true
         sudo apt-get autoremove -y
         sudo apt-get clean
-        
+    
     - name: Install Dependencies
       run: |
         sudo apt-get update
@@ -34,16 +34,6 @@ jobs:
         # Kalojmë instalimin automatik të SDK-së që shpesh dështon në CI
         # Përdorim vetëm instalimin e nevojshëm
         sudo ./setup/android_build_env.sh || true
-
-        
-    - name: Setup OrangeFox Sync Tool
-      run: |
-        mkdir ~/orangefox
-        cd ~/orangefox
-        git clone https://gitlab.com/OrangeFox/misc/scripts.git
-        cd scripts
-        sudo ./setup/android_build_env.sh
-        sudo ./setup/install_android_sdk.sh || true
 
     - name: Sync OrangeFox Sources
       run: |
