@@ -6,7 +6,7 @@ on:
       MANIFEST_BRANCH:
         description: 'TWRP Manifest Branch'
         required: true
-        default: 'twrp-12.1' # Ndryshuar këtu
+        default: 'twrp-12.1'
         type: choice
         options:
         - twrp-12.1
@@ -18,7 +18,7 @@ on:
       DEVICE_TREE_BRANCH:
         description: 'Device Tree Branch'
         required: true
-        default: 'android-12.1' # Sigurohu që kjo degë ekziston në repo
+        default: 'android-12.1'
       DEVICE_PATH:
         description: 'Specify your Device Path'
         required: true
@@ -62,6 +62,9 @@ jobs:
       run: |
         sudo apt update
         sudo apt install bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev libelf-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev -y
+        # INSTALIMI I REPO 
+        sudo curl --create-dirs -L -o /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
+        sudo chmod a+rx /usr/local/bin/repo
 
     - name: Set-up Manifest
       run: |
