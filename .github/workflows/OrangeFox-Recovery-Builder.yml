@@ -15,11 +15,10 @@ jobs:
         docker image prune -a -f || true
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/powershell /usr/share/swift /usr/local/share/boost || true
         sudo apt-get update
-        # Fshijmë vetëm ato që janë vërtet të mëdha dhe që zakonisht janë aty
         sudo apt-get purge -y azure-cli google-cloud-sdk microsoft-edge-stable google-chrome-stable firefox dotnet-sdk-* openjdk* || true
         sudo apt-get autoremove -y
         sudo apt-get clean
-    
+
     - name: Install Dependencies
       run: |
         sudo apt-get update
@@ -31,14 +30,13 @@ jobs:
         cd ~/orangefox
         git clone https://gitlab.com/OrangeFox/misc/scripts.git
         cd scripts
-        # Kalojmë instalimin automatik të SDK-së që shpesh dështon në CI
-        # Përdorim vetëm instalimin e nevojshëm
         sudo ./setup/android_build_env.sh || true
 
     - name: Sync OrangeFox Sources
       run: |
-        cd ~/orangefox
-        # Përdorim degën 12.1 për pajisjet moderne si Garnet
+        mkdir -p ~/fox_12.1
+        cd ~/fox_12.1
+        # Perdorim repo direkt per me shume stabilitet
         git clone https://gitlab.com/OrangeFox/sync.git
         cd sync
         ./orangefox_sync.sh --branch 12.1 --path ~/fox_12.1
