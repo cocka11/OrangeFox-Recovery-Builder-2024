@@ -24,7 +24,7 @@ on:
         description: 'Device Tree URL'
         required: true
         default: 'https://github.com/boedhack99/device_xiaomi_garnet-TWRP'
-        DEVICE_TREE_BRANCH:
+      DEVICE_TREE_BRANCH:
         description: 'Device Tree Branch'
         required: true
         default: 'android-12.1'
