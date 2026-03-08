@@ -19,7 +19,7 @@ on:
         options:
         - twrp-12.1
         - twrp-11
-        - orangefox-12.1
+        - fox_12.1
       DEVICE_TREE:
         description: 'Device Tree URL'
         required: true
@@ -28,6 +28,11 @@ on:
         description: 'Device Tree Branch'
         required: true
         default: 'android-12.1'
+        type: choice
+        options:
+        - fox_12.1
+        - twrp-12.1
+        - twrp-11
       DEVICE_PATH:
         description: 'Specify your Device Path'
         required: true
