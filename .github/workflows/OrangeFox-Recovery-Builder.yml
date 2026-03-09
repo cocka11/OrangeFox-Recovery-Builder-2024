@@ -78,12 +78,19 @@ jobs:
       run: |
         mkdir -p ${GITHUB_WORKSPACE}/workspace
         cd ${GITHUB_WORKSPACE}/workspace
+  
+        git config --global user.email "gh-actions@example.com"
+        git config --global user.name "GitHub Actions"
+        git config --global color.ui false
+        git config --global url."https://github.com/".insteadOf "git@github.com:"
+        git config --global url."https://gitlab.com/".insteadOf "git@gitlab.com:"
+        git config --global url."https://gitlab.com/".insteadOf "ssh://git@gitlab.com/"
         if [ "${{ inputs.RECOVERY_TYPE }}" == "TWRP" ]; then
-          repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b ${{ inputs.MANIFEST_BRANCH }}
+        repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b ${{ inputs.MANIFEST_BRANCH }}
         else
-          repo init --depth=1 -u https://gitlab.com/OrangeFox/Manifest.git -b ${{ inputs.MANIFEST_BRANCH }}
+        repo init --depth=1 -u https://gitlab.com/OrangeFox/Manifest.git -b ${{ inputs.MANIFEST_BRANCH }} --no-clone-bundle
         fi
-        repo sync -j$(nproc) --force-sync --no-clone-bundle --no-tags
+        repo sync -c -j$(nproc) --force-sync --no-clone-bundle --no-tags --optimized-fetch --prune
 
     - name: Clone Device Tree
       run: |
