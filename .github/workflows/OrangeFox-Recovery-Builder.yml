@@ -68,6 +68,12 @@ jobs:
         sudo curl --create-dirs -L -o /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
         sudo chmod a+rx /usr/local/bin/repo
 
+    - name: Configure Git
+      run: |
+        git config --global user.email "arbricocka@gmail.com"
+        git config --global user.name "cocka11"
+        git config --global color.ui false
+    
     - name: Sinkronizimi i Manifestit
       run: |
         mkdir -p ${GITHUB_WORKSPACE}/workspace
@@ -75,7 +81,7 @@ jobs:
         if [ "${{ inputs.RECOVERY_TYPE }}" == "TWRP" ]; then
           repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b ${{ inputs.MANIFEST_BRANCH }}
         else
-          repo init -u https://gitlab.com/OrangeFox/Manifest.git -b ${{ inputs.MANIFEST_BRANCH }}
+          repo init --depth=1 -u https://gitlab.com/OrangeFox/Manifest.git -b ${{ inputs.MANIFEST_BRANCH }}
         fi
         repo sync -j$(nproc) --force-sync --no-clone-bundle --no-tags
 
