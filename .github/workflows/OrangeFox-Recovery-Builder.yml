@@ -29,22 +29,29 @@ jobs:
           chmod a+x ~/bin/repo
           sudo ln -sf ~/bin/repo /usr/bin/repo
 
-      - name: Konfigurimi i Git dhe Fix Manifest
+      - name: Konfigurimi i Git dhe Sinkronizimi (Fix Final)
         run: |
-          git config --global user.email "bot@build.com"
-          git config --global user.name "Builder"
-          git config --global http.postBuffer 524288000
-          git config --global http.sslVerify false
-
-      - name: Sinkronizimi i Burimit (Source)
-        run: |
-          mkdir ~/fox && cd ~/fox
-          # Përdorim GitHub Mirror për Manifestin nëse GitLab refuzon
-          # OrangeFox mban kopje edhe në GitHub për këtë arsye
-          repo init --depth=1 -u https://github.com/OrangeFoxRecovery/Manifest.git -b fox_12.1
+          # 1. Pastrim total i konfigurimeve që mund të shkaktojnë kërkesë për login
+          git config --global --unset-all url."https://github.com/".insteadOf || true
+          git config --global --unset-all url."git@github.com:".insteadOf || true
           
-          # Force sync me opsione që shmangin pyetjet interaktive
-          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags --optimized-fetch --prune
+          # 2. Konfigurim minimal
+          git config --global user.email "orangefox@build.bot"
+          git config --global user.name "OrangeFox"
+          
+          # 3. Instalimi i një versioni më të qëndrueshëm të 'repo'
+          mkdir -p ~/bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+x ~/bin/repo
+          export PATH="$HOME/bin:$PATH"
+
+          # 4. Sinkronizimi duke përdorur TOKEN-in e vetë GitHub-it që ka ky runner
+          mkdir ~/fox && cd ~/fox
+          # Kjo detyron përdorimin e tokenit të përkohshëm të workflow-it për çdo kërkesë git
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          
+          repo init --depth=1 -u https://github.com/OrangeFoxRecovery/Manifest.git -b fox_12.1 --no-repo-verify
+          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
 
       - name: Clonimi i Device Tree
         run: |
