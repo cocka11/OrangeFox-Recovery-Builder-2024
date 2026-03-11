@@ -31,20 +31,20 @@ jobs:
 
       - name: Konfigurimi i Git dhe Fix Manifest
         run: |
-          git config --global user.email "orangefox@build.bot"
-          git config --global user.name "OrangeFox Builder"
-          # Ky rresht detyron përdorimin e HTTPS pa kërkuar kredenciale interaktive
-          git config --global url."https://gitlab.com/".insteadOf "git@gitlab.com:"
+          git config --global user.email "bot@build.com"
+          git config --global user.name "Builder"
+          git config --global http.postBuffer 524288000
+          git config --global http.sslVerify false
 
       - name: Sinkronizimi i Burimit (Source)
         run: |
           mkdir ~/fox && cd ~/fox
-          # Përdorim --no-repo-verify për të shmangur problemet e nënshkrimit
-          repo init --depth=1 -u https://gitlab.com/OrangeFox/Manifest.git -b fox_12.1 --no-repo-verify
+          # Përdorim GitHub Mirror për Manifestin nëse GitLab refuzon
+          # OrangeFox mban kopje edhe në GitHub për këtë arsye
+          repo init --depth=1 -u https://github.com/OrangeFoxRecovery/Manifest.git -b fox_12.1
           
-          # Shtojmë një "retry" nëse dështon herën e parë
-          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags || repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
-
+          # Force sync me opsione që shmangin pyetjet interaktive
+          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags --optimized-fetch --prune
 
       - name: Clonimi i Device Tree
         run: |
