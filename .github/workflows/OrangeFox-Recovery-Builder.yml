@@ -29,29 +29,27 @@ jobs:
           chmod a+x ~/bin/repo
           sudo ln -sf ~/bin/repo /usr/bin/repo
 
-      - name: Konfigurimi i Git dhe Sinkronizimi (Fix Final)
+      - name: Sinkronizimi i Burimit (Source)
         run: |
-          # 1. Pastrim total i konfigurimeve që mund të shkaktojnë kërkesë për login
-          git config --global --unset-all url."https://github.com/".insteadOf || true
-          git config --global --unset-all url."git@github.com:".insteadOf || true
+          # 1. Konfigurimi bazë (Pa token, pa maskim URL-je)
+          git config --global user.email "bot@build.com"
+          git config --global user.name "Builder"
+          git config --global http.postBuffer 524288000
           
-          # 2. Konfigurim minimal
-          git config --global user.email "orangefox@build.bot"
-          git config --global user.name "OrangeFox"
-          
-          # 3. Instalimi i një versioni më të qëndrueshëm të 'repo'
+          # 2. Shkarkimi i 'repo'
           mkdir -p ~/bin
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
           chmod a+x ~/bin/repo
           export PATH="$HOME/bin:$PATH"
 
-          # 4. Sinkronizimi duke përdorur TOKEN-in e vetë GitHub-it që ka ky runner
+          # 3. Krijimi i dosjes dhe sinkronizimi
           mkdir ~/fox && cd ~/fox
-          # Kjo detyron përdorimin e tokenit të përkohshëm të workflow-it për çdo kërkesë git
-          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
           
-          repo init --depth=1 -u https://github.com/OrangeFoxRecovery/Manifest.git -b fox_12.1 --no-repo-verify
-          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+          # Përdorim HTTPS direkt dhe shmangim çdo lloj verifikimi që bllokon procesin
+          ~/bin/repo init --depth=1 -u https://github.com/OrangeFoxRecovery/Manifest.git -b fox_12.1 --no-repo-verify
+          
+          # Sync me numër të limituar thread-esh për të shmangur bllokimin nga serveri
+          ~/bin/repo sync -c -j4 --force-sync --no-clone-bundle --no-tags
 
       - name: Clonimi i Device Tree
         run: |
