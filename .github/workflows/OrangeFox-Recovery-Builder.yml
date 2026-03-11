@@ -29,19 +29,22 @@ jobs:
           chmod a+x ~/bin/repo
           sudo ln -sf ~/bin/repo /usr/bin/repo
 
-      - name: Sinkronizimi (Manifesti Publik GitHub)
+      - name: Sinkronizimi (Metoda pa 'repo init')
         run: |
-          # Konfigurimi i detyrueshëm që 'repo' të mos kërkojë login
+          # 1. Pastrim dhe Konfigurim
           git config --global user.email "bot@build.bot"
           git config --global user.name "Builder"
-          git config --global color.ui false
           
           mkdir ~/fox && cd ~/fox
           
-          # Përdorim manifestin publik të GitHub (jo GitLab)
-          repo init --depth=1 -u https://github.com/OrangeFoxRecovery/Manifest.git -b fox_12.1 --no-repo-verify
+          # 2. Shkarkojmë manifestin manualisht me git clone (Kjo nuk dështon kurrë)
+          # Kjo shmang përdorimin e 'repo init' që po të jep gabimin e autentikimit
+          git clone https://github.com/OrangeFoxRecovery/Manifest.git -b fox_12.1 .repo/manifests
           
-          # Sinkronizimi me vetëm 4 lidhje për të shmangur bllokimin
+          # 3. Kopjojmë skedarin default.xml në vendin e duhur
+          cp .repo/manifests/default.xml .repo/manifest.xml
+          
+          # 4. Tani ekzekutojmë vetëm sync
           repo sync -c -j4 --force-sync --no-clone-bundle --no-tags
 
       - name: Clonimi i Device Tree (Garnet)
