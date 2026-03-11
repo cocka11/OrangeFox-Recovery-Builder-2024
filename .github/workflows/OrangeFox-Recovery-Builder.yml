@@ -1,7 +1,7 @@
 name: Build OrangeFox - garnet
 
 on:
-  workflow_dispatch: # Lejon nisjen manuale të build-it
+  workflow_dispatch:
 
 jobs:
   build:
@@ -10,64 +10,58 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Rritja e hapësirës në Disk
+      - name: Pastrim i Sistemit dhe Hapësirës
         run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /usr/share/dotnet /opt/ghc "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY"
+          # Fshijmë çdo konfigurim të mundshëm të mbetur nga build-et e kaluara
+          rm -rf ~/.gitconfig
+          rm -rf ~/.ssh
 
-      - name: Instalimi i Varësive (Dependencies)
+      - name: Instalimi i Varësive
         run: |
           sudo apt update
-          sudo apt install -y bc build-essential python3-setuptools x11proto-core-dev libx11-dev libgl1-mesa-dev libxml2-utils xsltproc unzip gperf bison clang cmake git-core gnupg flex curl lzop libncurses5-dev libsdl1.2-dev libssl-dev libxml2 python2-minimal rsync schedtool squashfs-tools wget zip zlib1g-dev
+          sudo apt install -y bc build-essential python3-setuptools x11proto-core-dev libx11-dev libgl1-mesa-dev libxml2-utils xsltproc unzip gperf bison clang cmake git-core gnupg flex curl lzop libncurses5-dev libsdl1.2-dev libssl-dev libxml2 python3-minimal rsync     schedtool squashfs-tools wget zip zlib1g-dev
 
       - name: Konfigurimi i Repo
         run: |
-          mkdir ~/bin
+          mkdir -p ~/bin
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
           chmod a+x ~/bin/repo
           sudo ln -sf ~/bin/repo /usr/bin/repo
 
-      - name: Sinkronizimi i Burimit (Source)
+      - name: Sinkronizimi (Manifesti Publik GitHub)
         run: |
-          # 1. Konfigurimi bazë (Pa token, pa maskim URL-je)
-          git config --global user.email "bot@build.com"
+          # Konfigurimi i detyrueshëm që 'repo' të mos kërkojë login
+          git config --global user.email "bot@build.bot"
           git config --global user.name "Builder"
-          git config --global http.postBuffer 524288000
+          git config --global color.ui false
           
-          # 2. Shkarkimi i 'repo'
-          mkdir -p ~/bin
-          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-          chmod a+x ~/bin/repo
-          export PATH="$HOME/bin:$PATH"
-
-          # 3. Krijimi i dosjes dhe sinkronizimi
           mkdir ~/fox && cd ~/fox
           
-          # Përdorim HTTPS direkt dhe shmangim çdo lloj verifikimi që bllokon procesin
-          ~/bin/repo init --depth=1 -u https://github.com/OrangeFoxRecovery/Manifest.git -b fox_12.1 --no-repo-verify
+          # Përdorim manifestin publik të GitHub (jo GitLab)
+          repo init --depth=1 -u https://github.com/OrangeFoxRecovery/Manifest.git -b fox_12.1 --no-repo-verify
           
-          # Sync me numër të limituar thread-esh për të shmangur bllokimin nga serveri
-          ~/bin/repo sync -c -j4 --force-sync --no-clone-bundle --no-tags
+          # Sinkronizimi me vetëm 4 lidhje për të shmangur bllokimin
+          repo sync -c -j4 --force-sync --no-clone-bundle --no-tags
 
-      - name: Clonimi i Device Tree
+      - name: Clonimi i Device Tree (Garnet)
         run: |
           cd ~/fox
+          # Kjo është pika ku shkarkohen skedarët specifikë për telefonin tënd
           git clone https://gitlab.com/OrangeFox/device/garnet.git device/xiaomi/garnet
 
-      - name: Ndërtimi (Build) i OrangeFox
+      - name: Ndërtimi (Build)
         run: |
           cd ~/fox
-          set -e
           source build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
           export FOX_REPLACE_TOOLBOX=1
           export LC_ALL="C"
+          # Komanda specifike për Garnet
           lunch twrp_garnet-eng
           mka adbd recoveryimage -j$(nproc --all)
 
-      - name: Upload Artifacts
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: OrangeFox-Garnet
