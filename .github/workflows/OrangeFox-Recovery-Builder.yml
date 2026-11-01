@@ -1,70 +1,55 @@
-name: Build OrangeFox - garnet
+name: Build Magisk APK
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Ju lejon ta nxisni manualisht nga shfletuesi i telefonit
+  push:
+    branches:
+      - master
+      - main
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    # Kjo i jep leje workflow-it të lexojë dhe shkruajë pa pyetur për username
-    permissions:
-      contents: read
-      packages: write
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      # 1. Klonimi i depos bashkë me submodules (Rust & C++ dependencies)
+      - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
 
-      - name: Pastrim dhe Konfigurim Git
+      # 2. Konfigurimi i Java JDK 17
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # 3. Instalimi i Rust Toolchain (i domosdoshëm për modulin native të Magisk)
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi, x86-linux-android, x86_64-linux-android
+
+      # 4. Instalimi i Android NDK dhe SDK tools
+      - name: Setup Android NDK
+        uses: ndk-ndk/setup-ndk@v1
+        with:
+          ndk-version: r26b
+
+      # 5. Ekzekutimi i kompilimit përmes Python build script ose Gradle
+      - name: Build Magisk App
         run: |
-          # Fshijmë konfigurimet që bllokojnë
-          rm -rf ~/.gitconfig
-          
-          # Konfigurimi me Token-in e GitHub që nuk kërkon login
-          git config --global user.email "bot@build.bot"
-          git config --global user.name "Builder"
-          
-          # Kjo komandë detyron Git-in të përdorë token-in e workflow-it për çdo kërkesë github.com
-          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          python3 build.py setup
+          python3 build.py app
 
-      - name: Instalimi i Varësive
-        run: |
-          sudo apt update
-          sudo apt install -y bc build-essential python3-setuptools x11proto-core-dev libx11-dev libgl1-mesa-dev libxml2-utils xsltproc unzip gperf bison clang cmake git-core gnupg flex curl lzop libncurses5-dev libsdl1.2-dev libssl-dev libxml2 python3-minimal rsync schedtool squashfs-tools wget zip zlib1g-dev
-
-      - name: Sinkronizimi i Burimit
-        run: |
-          # Shkarko repo tool
-          mkdir -p ~/bin
-          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-          chmod a+x ~/bin/repo
-          export PATH="$HOME/bin:$PATH"
-
-          mkdir ~/fox && cd ~/fox
-          
-          # Init dhe Sync
-          repo init --depth=1 -u https://github.com/OrangeFoxRecovery/Manifest.git -b fox_12.1 --no-repo-verify
-          repo sync -c -j4 --force-sync --no-clone-bundle --no-tags
-
-      - name: Clonimi i Device Tree
-        run: |
-          cd ~/fox
-          git clone https://gitlab.com/OrangeFox/device/garnet.git device/xiaomi/garnet
-
-      - name: Ndërtimi (Build)
-        run: |
-          cd ~/fox
-          export PATH="$HOME/bin:$PATH"
-          source build/envsetup.sh
-          export ALLOW_MISSING_DEPENDENCIES=true
-          export FOX_REPLACE_TOOLBOX=1
-          export LC_ALL="C"
-          lunch twrp_garnet-eng
-          mka adbd recoveryimage -j$(nproc --all)
-
+      # 6. Ruajtja e APK-së së ndërtuar te Artifacts
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OrangeFox-Garnet
-          path: ~/fox/out/target/product/garnet/OrangeFox-*.zip
-          
+          name: Magisk-Release-APK
+          path: |
+            out/app-release.apk
+            out/*.apk
+            app/build/outputs/apk/*/*/*.apk
